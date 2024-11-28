@@ -1,4 +1,4 @@
-# Airflow 기술 확보 프로젝트 계획서
+# Airflow 기술 확보 프로젝트 계획
 
 ## 1. Airflow 핵심 기능 설명
 
@@ -69,47 +69,87 @@ Airflow는 두 가지 방식으로 실행 일정을 관리합니다:
 
 3. 환경 설정
    - Docker 기반 설치 절차
-   - 설정 파일 최적화 가이드
-   - 보안 설정 매뉴얼
 
 ### 3.2 데모 시스템 구현
 시스템 구현은 다음과 같은 단계로 진행됩니다:
 
 1. 환경 구성
-```yaml
-version: '3'
-services:
-  airflow-webserver:
-    image: apache/airflow:2.9.3
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./dags:/opt/airflow/dags
-      - ./logs:/opt/airflow/logs
-      - ./config:/opt/airflow/config
-```
+- 사전 설치
+  - vscode
+  - python
+  - docker
+  - airflow:2.9.3
 
-2. 워크플로우 구현
-   - API 데이터 수집 (SimpleHttpOperator 활용)
+1. 워크플로우 구현
+   - Dags
+     - [api_data_pipeline](dags/api_data_pipeline.py) : 하나의 API 호출하고 성공 메시지 발송
+     - [parallel_api_pipeline](dags/parallel_api_pipeline.py)
+       - 1건의 API 병렬처리로 발송 
+       - 1건 성공 메일, 1건 실패 메일 발송
+       - 실패시 1번의 retry 시도하고, 실패 시 실패 메일 발송
+   - API 데이터 수집 ([Json_Fake_Data](https://jsonplaceholder.typicode.com/) 활용)
    - 데이터 파일 저장 (PythonOperator 활용)
-   - 로컬 저장소 관리
+   - 로컬 저장소 관리 (docker container 내부 디렉토리)
    - 이메일 알림 시스템 (EmailOperator 활용)
 
 ## 4. 검증 및 테스트
 
-### 4.1 구성 요소 검증
+docker-compose.yaml 설정 필요
+
+- smtp 설정 : docker-compose.yaml 77~81 라인  주석 해제 및 정보 입력
+   ```yaml
+   x-airflow-common:
+   environment:
+      # smtp settings
+      # AIRFLOW__SMTP__SMTP_HOST: 'smtp.gmail.com'             # 구글
+      # AIRFLOW__SMTP__SMTP_USER: ''        # 사용자 계정 
+      # AIRFLOW__SMTP__SMTP_PASSWORD: ''       # 구글에서 발급받은 mail 토큰
+      # AIRFLOW__SMTP__SMTP_PORT: 587                          # 587 고정
+      # AIRFLOW__SMTP__SMTP_MAIL_FROM: ''   # 보내는 사람 계정
+
+### 4.2 구성 요소 검증
 다음 항목들에 대한 세부적인 검증을 수행합니다:
 
 - 외부 API 연동 검증
 - 데이터 처리 정확성 확인
 - 알림 시스템 동작 검증
 
-### 4.2 통합 테스트
+### 4.3 테스트
 시스템 전반에 대한 테스트를 진행합니다:
 
-- DAG 실행 및 스케줄링 검증
-- 오류 처리 및 복구 기능 테스트
+- DAG 실행 검증
+- 오류 처리 및 복구 기능 테스트 (retry 1회)
 - 전체 워크플로우 통합 테스트
+```
+# 저장소 clone
+$ git clone https://github.com/yonggunjoo/airflow_demo.git
+
+# clone path 이동
+$ cd ${path}/airflow_demo
+
+# vscode open
+$ code .
+
+# terminal > python venv 설정
+$ python -m venv ./demo-env
+$ demo-env\Scripts\activate
+
+# 플러그인설치
+python.exe -m pip install --upgrade pip
+$ pip install -r requirements.txt
+
+# docker 컨테이너 백그라운드 실행
+docker-compose -f docker-compose.yaml up -d
+```
+- localhost:8080 접속
+- 접속 default 계정 : airflow/airflow 
+- parallel_api_pipeline
+   - 1건의 API 병렬처리로 발송
+   - 1건 성공 메일, 1건 실패 메일 발송
+   - 실패시 1번의 retry 시도하고, 실패 시 실패 메일 발송
+ - 테스트 결과
+ - 성공메일 : 1건, retry : 2건, 실패 메일 : 1건
+  ![테스트 결과](테스트결과.png)
 
 ## 5. 결론
 이 프로젝트를 통해 Airflow 기반의 데이터 파이프라인 자동화를 실현하고, 업무 효율성을 크게 향상시킬 수 있습니다. 지속적인 모니터링과 개선을 통해 시스템의 안정성을 확보할 것입니다.
